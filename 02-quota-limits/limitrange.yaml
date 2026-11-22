@@ -1,0 +1,27 @@
+# Rules for each container. Two jobs:
+# 1. defaults: once a quota covers requests/limits, a pod WITHOUT them is rejected.
+#    The LimitRange fills them in, so developers are not blocked by a missing field.
+# 2. min/max: stop one container from asking for the whole quota at once.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: team-a
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 100m, memory: 128Mi}
+    default:        {cpu: 500m, memory: 256Mi}   # default limits
+    max:            {cpu: "1",  memory: 1Gi}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: team-b
+spec:
+  limits:
+  - type: Container
+    defaultRequest: {cpu: 100m, memory: 128Mi}
+    default:        {cpu: 500m, memory: 256Mi}
+    max:            {cpu: "1",  memory: 1Gi}

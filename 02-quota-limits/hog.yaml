@@ -1,0 +1,20 @@
+# A "noisy neighbour": 10 replicas that each reserve half a CPU (5 CPUs in total).
+# Imagine a batch job someone forgot to size.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hog
+spec:
+  replicas: 10
+  selector:
+    matchLabels: {app: hog}
+  template:
+    metadata:
+      labels: {app: hog}
+    spec:
+      containers:
+      - name: hog
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests: {cpu: 500m, memory: 64Mi}   # what the scheduler reserves on a node
+          limits:   {cpu: 500m, memory: 64Mi}   # the most it may use at runtime
