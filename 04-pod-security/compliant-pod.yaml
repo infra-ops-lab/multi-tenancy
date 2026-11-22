@@ -1,0 +1,17 @@
+# The same idea, written to pass the "restricted" level: no privileges, no host access.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: compliant
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile: {type: RuntimeDefault}   # the default syscall filter
+  containers:
+  - name: shell
+    image: busybox:1.37
+    command: [sleep, "36000"]
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}

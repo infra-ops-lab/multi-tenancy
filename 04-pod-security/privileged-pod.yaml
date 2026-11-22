@@ -1,0 +1,18 @@
+# What one tenant can do on a shared node if nothing stops it:
+# a privileged container with the node's whole disk mounted at /host.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: node-reader
+spec:
+  containers:
+  - name: shell
+    image: busybox:1.37
+    command: [sleep, "36000"]
+    securityContext:
+      privileged: true          # all kernel capabilities, all devices
+    volumeMounts:
+    - {name: host, mountPath: /host}
+  volumes:
+  - name: host
+    hostPath: {path: /}         # the node's root filesystem

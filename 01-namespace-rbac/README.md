@@ -54,14 +54,15 @@ kubectl apply -f 01-namespace-rbac/rolebindings.yaml
 
 ## Try it
 
-Each team deploys a small web server. We use it again in steps 02 and 03.
+Each team deploys a small web server ([web.yaml](web.yaml)). We use it again in steps 02 to 05.
 
 ```console
-$ alice -n team-a create deployment web --image=nginxinc/nginx-unprivileged:1.27-alpine --port=8080
+$ alice -n team-a apply -f 01-namespace-rbac/web.yaml
 deployment.apps/web created
-$ alice -n team-a expose deployment web --port=80 --target-port=8080
-$ bob -n team-b create deployment web --image=nginxinc/nginx-unprivileged:1.27-alpine --port=8080
-$ bob -n team-b expose deployment web --port=80 --target-port=8080
+service/web created
+$ bob -n team-b apply -f 01-namespace-rbac/web.yaml
+deployment.apps/web created
+service/web created
 ```
 
 Now try to cross the boundary:

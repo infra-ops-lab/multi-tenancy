@@ -43,11 +43,11 @@ tenants read-only access to them, so a tenant cannot delete its own isolation.
 
 ## Apply
 
-Both teams start a small client pod, which we use to make requests:
+Both teams start a small client pod ([client.yaml](client.yaml)), which we use to make requests:
 
 ```bash
-alice -n team-a run client --image=curlimages/curl:8.11.1 --command -- sleep 36000
-bob   -n team-b run client --image=curlimages/curl:8.11.1 --command -- sleep 36000
+alice -n team-a apply -f 03-network-policy/client.yaml
+bob   -n team-b apply -f 03-network-policy/client.yaml
 ```
 
 A helper to print only the HTTP status code (`000` means no connection):

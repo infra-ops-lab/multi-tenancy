@@ -1,0 +1,33 @@
+# A small web server each team runs. Used again in steps 02-05.
+# The securityContext already meets the Pod Security "restricted" level (step 04),
+# so this pod keeps working when that guardrail is switched on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+      - name: web
+        image: nginxinc/nginx-unprivileged:1.27-alpine   # listens on 8080 as user 101
+        ports: [{containerPort: 8080}]
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]

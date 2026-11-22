@@ -1,0 +1,17 @@
+# A pod to make requests from. Meets Pod Security "restricted" (step 04).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100          # the image's user is a name, so give the number explicitly
+    seccompProfile: {type: RuntimeDefault}
+  containers:
+  - name: client
+    image: curlimages/curl:8.11.1
+    command: [sleep, "36000"]
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}
