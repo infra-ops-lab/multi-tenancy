@@ -76,7 +76,7 @@ which git ignores.
 | [03-network-policy](03-network-policy/) | The pod network is flat until you say otherwise | soft |
 | [04-pod-security](04-pod-security/) | One privileged pod defeats every layer above | soft |
 | [05-hard-isolation-nodes](05-hard-isolation-nodes/) | Dedicated nodes, and why admission policy must enforce them | hard |
-| [06-beyond](06-beyond/) | What is still shared, and when to move a tenant further | concept |
+| [06-beyond](06-beyond/) | Observe each tenant; what is still shared, and when to move a tenant further | concept |
 
 Each step's README has the same parts: **Concept**, **What it does not protect**, **Apply**,
 **Try it**, and **Clean up**. The expected output shown in each step comes from a real run.

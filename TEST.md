@@ -7,8 +7,8 @@ README is copied from those runs.
 |---|---|
 | Date | 2026-11-22 |
 | Cluster | kind v0.24.0, Kubernetes v1.36.1, 1 control-plane + 3 workers, default CNI (kindnet, enforces NetworkPolicy) |
-| Method | All steps in order, from a clean cluster to the clean-up in step 06, then again from clean. **3 full runs back to back.** |
-| Result | **102 / 102 checks passed in each run** |
+| Method | All steps in order, from a clean cluster to the clean-up in step 06. |
+| Result | Steps 00-05 + clean-up: **102 / 102 checks, 3 runs back to back**. With step 06 (tenant-insights) added: **114 / 114 checks**, 1 full run. |
 
 A check passes only if the command gives the expected result: success where the lab expects
 success, and the expected error message where the lab expects a denial.
@@ -23,7 +23,8 @@ success, and the expected error message where the lab expects a denial.
 | 03 network policy | 14 | team A reaches team B's service (HTTP 200) | default-deny breaks even DNS until allowed; same-tenant traffic works (200); cross-tenant traffic blocked in both directions; Alice cannot delete the policy |
 | 04 pod security | 13 | a privileged hostPath pod reads the node's disk, including another tenant's pod logs | server-side dry run warns first; the same pod is rejected by `restricted`; compliant pods and the existing `web` keep working; Alice cannot remove the label |
 | 05 dedicated nodes | 24 | the taint repels team A's own pods; Bob's pod with team A's toleration runs on team A's node | NoExecute evicts other tenants' pods; team A lands only on its nodes (nodeSelector added by MutatingAdmissionPolicy); foreign toleration, wildcard toleration and `spec.nodeName` are all denied; team B stays on the shared node |
-| clean-up | 9 | – | no taints, labels or admission policies left; Alice can do nothing |
+| 06 observe | 11 | – | tenant-insights installs with `TENANT_LABEL=tenant`; reports show group access and quota left; re-applying `hog` turns team A **Blocked** with the Pod Security reason and a fix hint; back to `OK` after removing it |
+| clean-up | 10 | – | tenant-insights uninstalled; no taints, labels or admission policies left; Alice can do nothing |
 
 ## Not tested
 
