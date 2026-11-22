@@ -1,0 +1,19 @@
+# Start from "nothing may talk to anything". podSelector {} = every pod in the namespace.
+# Listing both policy types with no rules means: no ingress and no egress is allowed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: team-a
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: team-b
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]

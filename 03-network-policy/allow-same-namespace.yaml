@@ -1,0 +1,31 @@
+# Pods of the same tenant may talk to each other, in both directions.
+# A bare podSelector inside from/to means "pods in THIS namespace".
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: team-a
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+  - from:
+    - podSelector: {}
+  egress:
+  - to:
+    - podSelector: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: team-b
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+  - from:
+    - podSelector: {}
+  egress:
+  - to:
+    - podSelector: {}
