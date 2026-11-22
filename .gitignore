@@ -1,1 +1,7 @@
+# Lab users' private keys, certificates and kubeconfigs (step 00). Never commit these.
 users/
+*.key
+*.crt
+*.csr
+*.pem
+*.kubeconfig
