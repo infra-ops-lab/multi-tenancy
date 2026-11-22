@@ -1,0 +1,16 @@
+# A toleration with operator Exists and no key tolerates EVERY taint.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wildcard
+spec:
+  tolerations:
+  - operator: Exists
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile: {type: RuntimeDefault}
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}

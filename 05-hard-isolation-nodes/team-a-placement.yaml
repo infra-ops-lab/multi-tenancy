@@ -1,0 +1,24 @@
+# ATTRACT: every pod created in team-a is changed on its way in to
+#   - select team A's nodes (nodeSelector), and
+#   - tolerate their taint.
+# Developers write normal manifests. The platform decides where they run.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: team-a-placement
+spec:
+  rules:
+  - name: pin-to-team-a-nodes
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          namespaces: [team-a]
+          operations: [CREATE]
+    mutate:
+      patchStrategicMerge:
+        spec:
+          nodeSelector:
+            tenant: team-a
+          tolerations:
+          - {key: tenant, operator: Equal, value: team-a, effect: NoExecute}

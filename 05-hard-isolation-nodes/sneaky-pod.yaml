@@ -1,0 +1,19 @@
+# Bob (team B) asks to run on team A's dedicated nodes.
+# Nothing in RBAC or Pod Security looks at tolerations or node selectors.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sneaky
+  labels: {run: sneaky}
+spec:
+  nodeSelector: {tenant: team-a}           # "put me on team A's nodes"
+  tolerations:                             # "and ignore their taint"
+  - {key: tenant, operator: Equal, value: team-a, effect: NoExecute}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile: {type: RuntimeDefault}
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}

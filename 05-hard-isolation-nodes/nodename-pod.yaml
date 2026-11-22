@@ -1,0 +1,16 @@
+# spec.nodeName skips the scheduler, and with it the taint check.
+# Replace the placeholder with one of team A's nodes (see the README).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: direct
+spec:
+  nodeName: REPLACE-WITH-A-TEAM-A-NODE
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    seccompProfile: {type: RuntimeDefault}
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.10
+    securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}

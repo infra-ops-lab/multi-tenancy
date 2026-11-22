@@ -1,0 +1,60 @@
+# KEEP OUT: no tenant may place a pod on another tenant's nodes.
+# Applies to every namespace that has a "tenant" label (step 00), so it covers future tenants too.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: tenant-node-boundaries
+spec:
+  background: false
+  rules:
+  - name: no-foreign-tenant-tolerations
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          operations: [CREATE]
+          namespaceSelector:
+            matchExpressions: [{key: tenant, operator: Exists}]
+    validate:
+      failureAction: Enforce
+      message: "Pods may only tolerate their own tenant's taint (tenant={{ request.namespace }})."
+      deny:
+        conditions:
+          any:
+          - key: "{{ length(request.object.spec.tolerations[?key=='tenant' && value!='{{ request.namespace }}'] || `[]`) }}"
+            operator: GreaterThan
+            value: 0
+  - name: no-wildcard-tolerations
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          operations: [CREATE]
+          namespaceSelector:
+            matchExpressions: [{key: tenant, operator: Exists}]
+    validate:
+      failureAction: Enforce
+      message: "A toleration without a key tolerates every taint, including other tenants' nodes."
+      deny:
+        conditions:
+          any:
+          - key: "{{ length(request.object.spec.tolerations[?operator=='Exists' && !key] || `[]`) }}"
+            operator: GreaterThan
+            value: 0
+  - name: no-node-name
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          operations: [CREATE]
+          namespaceSelector:
+            matchExpressions: [{key: tenant, operator: Exists}]
+    validate:
+      failureAction: Enforce
+      message: "spec.nodeName bypasses the scheduler and taints. Let the scheduler place pods."
+      deny:
+        conditions:
+          any:
+          - key: "{{ request.object.spec.nodeName || '' }}"
+            operator: NotEquals
+            value: ""
