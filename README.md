@@ -59,7 +59,9 @@ what each one is allowed to do.
 - At least **3 worker nodes** for step 05 (two dedicated to team A, one shared). Steps 00-04 work with one.
 - A network plugin that **enforces** NetworkPolicy (Calico, Cilium, or recent kind's default
   kindnet). Step 03 shows you how to tell.
-- `openssl` (step 00) and `helm` (step 05, to install Kyverno).
+- Kubernetes **1.36 or later** for step 05 as written (built-in MutatingAdmissionPolicy). Steps 00-04
+  work on any supported version. Step 05 explains the alternative for older clusters.
+- `openssl` for step 00.
 
 Run every command from the root of this repository. Files for the lab users go into `users/`,
 which git ignores.
@@ -73,7 +75,7 @@ which git ignores.
 | [02-quota-limits](02-quota-limits/) | One team must not starve the others | soft |
 | [03-network-policy](03-network-policy/) | The pod network is flat until you say otherwise | soft |
 | [04-pod-security](04-pod-security/) | One privileged pod defeats every layer above | soft |
-| [05-hard-isolation-nodes](05-hard-isolation-nodes/) | Dedicated nodes, and why policy must enforce them | hard |
+| [05-hard-isolation-nodes](05-hard-isolation-nodes/) | Dedicated nodes, and why admission policy must enforce them | hard |
 | [06-beyond](06-beyond/) | What is still shared, and when to move a tenant further | concept |
 
 Each step's README has the same parts: **Concept**, **What it does not protect**, **Apply**,

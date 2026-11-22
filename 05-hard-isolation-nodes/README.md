@@ -16,10 +16,13 @@ Two node features do this, and you need both, because each does only half the jo
 
 And both are **requests written in the pod spec by the tenant**. Any tenant can write
 "tolerate team A's taint and select team A's nodes". RBAC and Pod Security do not look at
-those fields. So the boundary only holds if a **policy engine** writes and checks them:
+those fields. So the boundary only holds if an **admission policy** writes and checks them. Kubernetes has
+this built in: a **MutatingAdmissionPolicy** changes a request on its way in, and a
+**ValidatingAdmissionPolicy** accepts or rejects it. Both are written in CEL and run inside the
+API server, so there is nothing extra to install.
 
 ```
-                      ┌───────────── Kyverno (admission) ─────────────┐
+                      ┌────────── API server admission ───────────────┐
  pod from team-a ───► │ mutate: add nodeSelector + toleration          │ ───► team-a nodes only
  pod from team-b ───► │ validate: no team-a toleration, no wildcard,   │ ───► denied, if it tries
                       │           no spec.nodeName                     │
@@ -27,13 +30,22 @@ those fields. So the boundary only holds if a **policy engine** writes and check
    nodes:   [ worker: team-a ]  [ worker2: team-a ]  [ worker3: shared ]
 ```
 
-- [team-a-placement.yaml](team-a-placement.yaml) **attracts**: every pod created in `team-a` gets
-  the nodeSelector and the toleration added on its way in. Developers write normal manifests.
-- [tenant-node-boundaries.yaml](tenant-node-boundaries.yaml) **keeps out**, for every namespace
-  with a `tenant` label:
+- [team-a-placement.yaml](team-a-placement.yaml) **attracts** (MutatingAdmissionPolicy): every pod
+  created in `team-a` gets the nodeSelector and the toleration added on its way in. Developers
+  write normal manifests.
+- [tenant-node-boundaries.yaml](tenant-node-boundaries.yaml) **keeps out** (ValidatingAdmissionPolicy),
+  for every namespace with a `tenant` label:
   - a pod may only tolerate its **own** tenant's taint;
   - no wildcard toleration (`operator: Exists` with no key tolerates **every** taint);
   - no `spec.nodeName`, which skips the scheduler and therefore the taint check.
+
+Each policy comes with a **binding** that says where it applies, selected by namespace label.
+
+**Cluster version.** ValidatingAdmissionPolicy is GA since Kubernetes 1.30, and
+MutatingAdmissionPolicy since 1.36. On an older cluster, use a policy engine such as
+[Kyverno](https://kyverno.io) or [OPA Gatekeeper](https://open-policy-agent.github.io/gatekeeper/)
+for the same two rules. The concept is identical: the platform mutates placement in, and rejects
+anything that reaches for another tenant's nodes.
 
 ## What it does not protect
 
@@ -42,8 +54,10 @@ those fields. So the boundary only holds if a **policy engine** writes and check
 - Tenants still share the **cluster network**. Step 03's policies are still what keeps them apart.
 - Cluster-wide objects are still shared: CRDs, ClusterRoles, StorageClasses, admission webhooks.
   A tenant that needs its own CRDs or versions needs its own control plane (step 06).
-- The policy engine is now part of your security boundary. If it is down and its webhook fails
-  open, the boundary is gone. Kyverno's validating webhook fails closed by default (`svc-fail`).
+- The admission policies are now part of your security boundary. Both use `failurePolicy: Fail`,
+  so if a policy cannot be evaluated, the pod is rejected rather than let through. Anyone who can
+  edit or delete these cluster-wide policies can remove the boundary, so keep them with the
+  platform team (tenants have no rights on them, step 01).
 - It costs more: dedicated nodes are paid for even when the tenant is idle.
 
 ## Apply
@@ -96,23 +110,21 @@ Team B is running on team A's "dedicated" node. Nothing stopped it.
 bob -n team-b delete -f 05-hard-isolation-nodes/sneaky-pod.yaml
 ```
 
-### Install Kyverno and the policies
+### Apply the policies
 
-Kyverno is a policy engine that runs as an admission webhook. This lab was tested with chart
-`3.9.2` (Kyverno `v1.19.2`):
+Read both files, then apply them:
 
-```bash
-helm repo add kyverno https://kyverno.github.io/kyverno/
-helm install kyverno kyverno/kyverno --version 3.9.2 -n kyverno --create-namespace --wait
+```console
+$ kubectl apply -f 05-hard-isolation-nodes/team-a-placement.yaml
+mutatingadmissionpolicy.admissionregistration.k8s.io/team-a-placement created
+mutatingadmissionpolicybinding.admissionregistration.k8s.io/team-a-placement created
+$ kubectl apply -f 05-hard-isolation-nodes/tenant-node-boundaries.yaml
+validatingadmissionpolicy.admissionregistration.k8s.io/tenant-node-boundaries created
+validatingadmissionpolicybinding.admissionregistration.k8s.io/tenant-node-boundaries created
 ```
 
-Read both policies, then apply them:
-
-```bash
-kubectl apply -f 05-hard-isolation-nodes/team-a-placement.yaml
-kubectl apply -f 05-hard-isolation-nodes/tenant-node-boundaries.yaml
-kubectl wait --for=condition=Ready clusterpolicy --all
-```
+Policies apply to pods created **after** this point. Running pods are not changed, which is why
+team A restarts its Deployment below.
 
 ## Try it
 
@@ -132,30 +144,21 @@ Bob tries the same sneaky pod again:
 
 ```console
 $ bob -n team-b apply -f 05-hard-isolation-nodes/sneaky-pod.yaml
-Error from server: error when creating "05-hard-isolation-nodes/sneaky-pod.yaml": admission webhook "validate.kyverno.svc-fail" denied the request:
-
-resource Pod/team-b/sneaky was blocked due to the following policies
-
-tenant-node-boundaries:
-  no-foreign-tenant-tolerations: Pods may only tolerate their own tenant's taint (tenant=team-b).
+The pods "sneaky" is invalid: : ValidatingAdmissionPolicy 'tenant-node-boundaries' with binding 'tenant-node-boundaries' denied request: pods may only tolerate their own tenant taint (tenant=team-b)
 ```
 
 He tries a wildcard toleration ([wildcard-pod.yaml](wildcard-pod.yaml)):
 
 ```console
 $ bob -n team-b apply -f 05-hard-isolation-nodes/wildcard-pod.yaml
-...
-tenant-node-boundaries:
-  no-wildcard-tolerations: A toleration without a key tolerates every taint, including other tenants' nodes.
+The pods "wildcard" is invalid: : ValidatingAdmissionPolicy 'tenant-node-boundaries' with binding 'tenant-node-boundaries' denied request: a toleration without a key tolerates every taint, including other tenants' nodes
 ```
 
 He tries to skip the scheduler and name the node directly ([nodename-pod.yaml](nodename-pod.yaml)):
 
 ```console
 $ sed "s/REPLACE-WITH-A-TEAM-A-NODE/$A1/" 05-hard-isolation-nodes/nodename-pod.yaml | bob -n team-b apply -f -
-...
-tenant-node-boundaries:
-  no-node-name: spec.nodeName bypasses the scheduler and taints. Let the scheduler place pods.
+The pods "direct" is invalid: : ValidatingAdmissionPolicy 'tenant-node-boundaries' with binding 'tenant-node-boundaries' denied request: spec.nodeName bypasses the scheduler and taints; let the scheduler place pods
 ```
 
 Team B's own workloads are unaffected and stay on the shared node:

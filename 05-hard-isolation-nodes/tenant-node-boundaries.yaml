@@ -1,60 +1,43 @@
 # KEEP OUT: no tenant may place a pod on another tenant's nodes.
-# Applies to every namespace that has a "tenant" label (step 00), so it covers future tenants too.
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+# The binding applies it to every namespace with a "tenant" label (step 00), so future tenants are covered.
+# ValidatingAdmissionPolicy is built into the API server (admissionregistration.k8s.io/v1, Kubernetes 1.30+).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
 metadata:
   name: tenant-node-boundaries
 spec:
-  background: false
-  rules:
-  - name: no-foreign-tenant-tolerations
-    match:
-      any:
-      - resources:
-          kinds: [Pod]
-          operations: [CREATE]
-          namespaceSelector:
-            matchExpressions: [{key: tenant, operator: Exists}]
-    validate:
-      failureAction: Enforce
-      message: "Pods may only tolerate their own tenant's taint (tenant={{ request.namespace }})."
-      deny:
-        conditions:
-          any:
-          - key: "{{ length(request.object.spec.tolerations[?key=='tenant' && value!='{{ request.namespace }}'] || `[]`) }}"
-            operator: GreaterThan
-            value: 0
-  - name: no-wildcard-tolerations
-    match:
-      any:
-      - resources:
-          kinds: [Pod]
-          operations: [CREATE]
-          namespaceSelector:
-            matchExpressions: [{key: tenant, operator: Exists}]
-    validate:
-      failureAction: Enforce
-      message: "A toleration without a key tolerates every taint, including other tenants' nodes."
-      deny:
-        conditions:
-          any:
-          - key: "{{ length(request.object.spec.tolerations[?operator=='Exists' && !key] || `[]`) }}"
-            operator: GreaterThan
-            value: 0
-  - name: no-node-name
-    match:
-      any:
-      - resources:
-          kinds: [Pod]
-          operations: [CREATE]
-          namespaceSelector:
-            matchExpressions: [{key: tenant, operator: Exists}]
-    validate:
-      failureAction: Enforce
-      message: "spec.nodeName bypasses the scheduler and taints. Let the scheduler place pods."
-      deny:
-        conditions:
-          any:
-          - key: "{{ request.object.spec.nodeName || '' }}"
-            operator: NotEquals
-            value: ""
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: [v1]
+      operations: [CREATE]
+      resources: [pods]
+  variables:
+  - name: tenant
+    expression: namespaceObject.metadata.labels['tenant']
+  - name: tolerations
+    expression: "has(object.spec.tolerations) ? object.spec.tolerations : []"
+  validations:
+  # 1. Only your own tenant's taint. A toleration for key "tenant" must name your tenant exactly.
+  - expression: >
+      variables.tolerations.all(t, !has(t.key) || t.key != 'tenant' ||
+        (has(t.value) && t.value == variables.tenant))
+    messageExpression: "'pods may only tolerate their own tenant taint (tenant=' + variables.tenant + ')'"
+  # 2. No wildcard. operator Exists without a key tolerates EVERY taint.
+  - expression: "variables.tolerations.all(t, has(t.key) && t.key != '')"
+    message: "a toleration without a key tolerates every taint, including other tenants' nodes"
+  # 3. No spec.nodeName. It skips the scheduler, and with it the taint check.
+  - expression: "!has(object.spec.nodeName) || object.spec.nodeName == ''"
+    message: "spec.nodeName bypasses the scheduler and taints; let the scheduler place pods"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: tenant-node-boundaries
+spec:
+  policyName: tenant-node-boundaries
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchExpressions: [{key: tenant, operator: Exists}]

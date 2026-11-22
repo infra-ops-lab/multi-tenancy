@@ -1,24 +1,41 @@
-# ATTRACT: every pod created in team-a is changed on its way in to
+# ATTRACT: every pod created in a namespace labelled tenant=team-a is changed on its way in to
 #   - select team A's nodes (nodeSelector), and
 #   - tolerate their taint.
 # Developers write normal manifests. The platform decides where they run.
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+# MutatingAdmissionPolicy is built into the API server (admissionregistration.k8s.io/v1, Kubernetes 1.36+).
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicy
 metadata:
   name: team-a-placement
 spec:
-  rules:
-  - name: pin-to-team-a-nodes
-    match:
-      any:
-      - resources:
-          kinds: [Pod]
-          namespaces: [team-a]
-          operations: [CREATE]
-    mutate:
-      patchStrategicMerge:
-        spec:
-          nodeSelector:
-            tenant: team-a
-          tolerations:
-          - {key: tenant, operator: Equal, value: team-a, effect: NoExecute}
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: [v1]
+      operations: [CREATE]
+      resources: [pods]
+  mutations:
+  - patchType: JSONPatch
+    jsonPatch:
+      expression: >
+        [
+          JSONPatch{op: "add", path: "/spec/nodeSelector", value: {"tenant": "team-a"}},
+          has(object.spec.tolerations)
+            ? JSONPatch{op: "add", path: "/spec/tolerations/-",
+                value: Object.spec.tolerations{key: "tenant", operator: "Equal", value: "team-a", effect: "NoExecute"}}
+            : JSONPatch{op: "add", path: "/spec/tolerations",
+                value: [Object.spec.tolerations{key: "tenant", operator: "Equal", value: "team-a", effect: "NoExecute"}]}
+        ]
+---
+# WHERE the policy applies: only team A's namespace.
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: team-a-placement
+spec:
+  policyName: team-a-placement
+  matchResources:
+    namespaceSelector:
+      matchLabels: {tenant: team-a}

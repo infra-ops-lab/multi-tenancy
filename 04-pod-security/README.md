@@ -29,7 +29,8 @@ tenant cannot switch it off.
   does not protect against a kernel bug that lets a well-behaved container escape. That risk is
   why sandboxed runtimes exist (step 06).
 - It has three fixed levels. For your own rules (allowed registries, required labels, which
-  nodes a tenant may use) you need a policy engine like Kyverno or OPA Gatekeeper (step 05).
+  nodes a tenant may use) you need admission policies: the built-in ones (step 05) or a policy engine
+  such as Kyverno or OPA Gatekeeper.
 - Pods that are already running are not stopped when you turn it on.
 
 ## Apply
