@@ -81,4 +81,5 @@ which git ignores.
 Each step's README has the same parts: **Concept**, **What it does not protect**, **Apply**,
 **Try it**, and **Clean up**. The expected output shown in each step comes from a real run.
 
-Tested on: kind v0.24.0, Kubernetes v1.36.1 (1 control-plane + 3 workers).
+Tested on kind v0.24.0 with Kubernetes v1.36.1 (1 control-plane + 3 workers). See [TEST.md](TEST.md)
+for what was checked and the results.
