@@ -1,0 +1,37 @@
+# What a tenant developer may do INSIDE a namespace they are bound to.
+# A ClusterRole is only a reusable list of permissions. It grants nothing until it is bound.
+# Bound with a RoleBinding (step below), it applies to one namespace only.
+#
+# Deliberately missing, so the tenant cannot remove its own guardrails:
+#   roles, rolebindings          -> no self-promotion
+#   resourcequotas, limitranges  -> read only (step 02)
+#   networkpolicies              -> read only (step 03)
+#   namespaces                   -> no relabelling (step 04, step 05)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-developer
+rules:
+# Run and debug workloads.
+- apiGroups: [""]
+  resources: [pods, services, configmaps, secrets, persistentvolumeclaims, serviceaccounts]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: [""]
+  resources: [pods/log, pods/exec, pods/portforward]
+  verbs: [get, create]
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, deployments/scale, statefulsets/scale]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: [apps]
+  resources: [replicasets]
+  verbs: [get, list, watch]
+- apiGroups: [batch]
+  resources: [jobs, cronjobs]
+  verbs: [get, list, watch, create, update, patch, delete]
+# See, but not change, the guardrails the platform team owns.
+- apiGroups: [""]
+  resources: [resourcequotas, limitranges, events, endpoints]
+  verbs: [get, list, watch]
+- apiGroups: [networking.k8s.io]
+  resources: [networkpolicies]
+  verbs: [get, list, watch]
