@@ -1,0 +1,15 @@
+# One namespace per tenant. The label is how every later layer
+# (NetworkPolicy, Kyverno, reports) recognises "which tenant owns this".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    tenant: team-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    tenant: team-b

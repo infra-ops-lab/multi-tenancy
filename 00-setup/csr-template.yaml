@@ -1,0 +1,12 @@
+# A request to the cluster's own CA: "please sign this certificate for a user".
+# __USER__ and __CSR__ are replaced by the commands in the README.
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: __USER__
+spec:
+  request: __CSR__                                # base64 of the PEM CSR (CN = user, O = group)
+  signerName: kubernetes.io/kube-apiserver-client # "a client certificate for talking to the API server"
+  expirationSeconds: 86400                        # 24 hours: short-lived on purpose
+  usages:
+  - client auth
